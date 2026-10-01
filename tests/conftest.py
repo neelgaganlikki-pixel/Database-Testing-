@@ -169,9 +169,45 @@ class APIClient:
         return self.session.delete(url, **kwargs)
 
 
+def ensure_fastapi_running():
+    """Ensures the FastAPI backend server is up and responsive before tests run."""
+    import time
+    import subprocess
+    health_url = f"{DBConfig.API_BASE_URL}/health"
+    try:
+        r = requests.get(health_url, timeout=1.5)
+        if r.status_code == 200 and r.json().get("status") == "healthy":
+            return
+    except Exception:
+        pass
+
+    logger.info("FastAPI backend is offline. Starting FastAPI in background...")
+    venv_py = ROOT_DIR / "venv" / "Scripts" / "python.exe"
+    py_exe = str(venv_py) if venv_py.exists() else sys.executable
+    flags = (getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) |
+             getattr(subprocess, "DETACHED_PROCESS", 0))
+    subprocess.Popen(
+        [py_exe, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"],
+        creationflags=flags,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    for _ in range(20):
+        time.sleep(1)
+        try:
+            r = requests.get(health_url, timeout=1.5)
+            if r.status_code == 200 and r.json().get("status") == "healthy":
+                logger.info("FastAPI backend started and healthy.")
+                return
+        except Exception:
+            pass
+    logger.warning("FastAPI startup check timed out.")
+
+
 @pytest.fixture(scope="session")
 def api_client():
     """Provides an API client configured for the local FastAPI server."""
+    ensure_fastapi_running()
 
     client = APIClient(
         base_url=DBConfig.API_BASE_URL
@@ -261,6 +297,9 @@ def browser_instance(request):
     logger.info(
         f"[UI] Resolved run_headless value: {run_headless}"
     )
+
+    # Ensure backend is up for UI tests
+    ensure_fastapi_running()
 
     # --------------------------------------------------------
     # Launch Playwright

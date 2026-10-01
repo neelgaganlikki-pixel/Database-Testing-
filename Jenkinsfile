@@ -9,6 +9,8 @@ pipeline {
 
     environment {
         PYTHONUNBUFFERED = '1'
+        JENKINS_NODE_COOKIE = 'dontKillMe'
+        BUILD_ID = 'dontKillMe'
 
         DB_HOST = '127.0.0.1'
         DB_PORT = '3306'
@@ -152,7 +154,9 @@ pipeline {
                     taskkill /F /IM uvicorn.exe /T >nul 2>&1 || (exit /b 0)
 
                     echo Starting FastAPI...
-                    start "FastAPI" /B venv\\Scripts\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+                    set JENKINS_NODE_COOKIE=dontKillMe
+                    set BUILD_ID=dontKillMe
+                    start "" /B venv\\Scripts\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
                     echo Waiting for FastAPI application to initialize...
                     venv\\Scripts\\python.exe -c "import time; time.sleep(3)"
