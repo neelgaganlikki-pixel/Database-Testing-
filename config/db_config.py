@@ -2,9 +2,8 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env file from project root
 env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
+load_dotenv(dotenv_path=env_path, override=True)
 
 class DBConfig:
     """Database configuration loaded from environment variables."""
@@ -18,7 +17,17 @@ class DBConfig:
     API_BASE_URL: str = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
     APP_HOST: str = os.getenv("APP_HOST", "127.0.0.1")
     APP_PORT: int = int(os.getenv("APP_PORT", "8000"))
-    HEADLESS: bool = os.getenv("HEADLESS", "true").lower() in ("true", "1", "yes")
+
+    @classmethod
+    def is_headless(cls) -> bool:
+        """Dynamically re-reads .env to check if headless mode is active."""
+        load_dotenv(dotenv_path=env_path, override=True)
+        raw_val = os.getenv("HEADLESS", "true").split("#")[0].strip().strip('"').strip("'").lower()
+        return raw_val in ("true", "1", "yes")
+
+    @property
+    def HEADLESS(self) -> bool:
+        return self.is_headless()
 
     @classmethod
     def get_connection_dict(cls, include_database: bool = True) -> dict:
