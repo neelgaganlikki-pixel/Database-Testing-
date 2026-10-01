@@ -34,8 +34,17 @@ def execute_sql_file(file_path: Path, connection) -> None:
     finally:
         cursor.close()
 
-def init_database() -> None:
-    """Creates database, tables, and applies seed data."""
+EXPECTED_TABLES = {
+    "customers", "categories", "products", "addresses",
+    "cart", "cart_items", "orders", "order_items", "payments"
+}
+
+def init_database(force_recreate: bool = False) -> None:
+    """Creates database, tables, and applies seed data.
+    
+    If tables already exist and force_recreate is False, it safely truncates and reseeds
+    to avoid dropping table definitions during test runs.
+    """
     # 1. Connect without database to create if not exists
     server_cfg = get_server_config()
     conn = mysql.connector.connect(**server_cfg)
@@ -45,15 +54,29 @@ def init_database() -> None:
     cursor.close()
     conn.close()
 
-    # 2. Connect with database and run schema.sql
+    # 2. Check if tables already exist
     db_cfg = get_db_config()
     db_conn = mysql.connector.connect(**db_cfg)
-    schema_file = ROOT_DIR / "database" / "schema.sql"
-    execute_sql_file(schema_file, db_conn)
+    cursor = db_conn.cursor()
+    cursor.execute("SHOW TABLES;")
+    existing_tables = {row[0].lower() for row in cursor.fetchall()}
+    cursor.close()
 
-    # 3. Run seed_data.sql
-    seed_file = ROOT_DIR / "database" / "seed_data.sql"
-    execute_sql_file(seed_file, db_conn)
+    if not force_recreate and EXPECTED_TABLES.issubset(existing_tables):
+        # Tables exist - safely truncate and re-seed without dropping schemas
+        logger.info("All tables exist. Truncating and re-seeding database...")
+        cleanup_file = ROOT_DIR / "database" / "cleanup.sql"
+        execute_sql_file(cleanup_file, db_conn)
+        seed_file = ROOT_DIR / "database" / "seed_data.sql"
+        execute_sql_file(seed_file, db_conn)
+    else:
+        # Schema creation needed
+        logger.info("Executing schema.sql and seed_data.sql...")
+        schema_file = ROOT_DIR / "database" / "schema.sql"
+        execute_sql_file(schema_file, db_conn)
+        seed_file = ROOT_DIR / "database" / "seed_data.sql"
+        execute_sql_file(seed_file, db_conn)
+
     db_conn.close()
     logger.info("Database initialized and seeded successfully.")
 
@@ -68,7 +91,7 @@ def cleanup_database() -> None:
 
 def reset_database() -> None:
     """Completely resets database and re-runs schema + seed."""
-    init_database()
+    init_database(force_recreate=True)
     logger.info("Database reset complete.")
 
 if __name__ == "__main__":

@@ -1,6 +1,12 @@
 pipeline {
     agent any
 
+    options {
+        disableConcurrentBuilds()
+        timeout(time: 30, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+
     environment {
         PYTHONUNBUFFERED = '1'
 
@@ -142,19 +148,17 @@ pipeline {
                 echo '========================================'
 
                 bat '''
-                    echo Starting FastAPI...
+                    echo Cleaning any previous FastAPI instances...
+                    taskkill /F /IM uvicorn.exe /T >nul 2>&1 || (exit /b 0)
 
+                    echo Starting FastAPI...
                     start "FastAPI" /B venv\\Scripts\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
-                    echo.
-                    echo Waiting for FastAPI application...
+                    echo Waiting for FastAPI application to initialize...
+                    venv\\Scripts\\python.exe -c "import time; time.sleep(3)"
 
-                    timeout /t 5 /nobreak >nul
-
-                    echo.
                     echo Checking FastAPI health endpoint...
-
-                    venv\\Scripts\\python.exe -c "import requests; r = requests.get('http://127.0.0.1:8000/health', timeout=15); print('HTTP Status:', r.status_code); assert r.status_code == 200, 'FastAPI application failed to start'"
+                    venv\\Scripts\\python.exe -c "import time, requests; [time.sleep(1) for _ in range(15) if requests.get('http://127.0.0.1:8000/health').status_code != 200]; r = requests.get('http://127.0.0.1:8000/health', timeout=5); print('HTTP Status:', r.status_code); assert r.status_code == 200, 'FastAPI application failed to start'"
 
                     echo.
                     echo FastAPI application started successfully.
