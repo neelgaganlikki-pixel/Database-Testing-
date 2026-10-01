@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apex Store | E-Commerce Test Automation App</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding-bottom: 60px; }
+    header { background: #0f172a; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    .brand { font-size: 1.4rem; font-weight: 700; color: #60a5fa; }
+    .nav-user { display: flex; align-items: center; gap: 1rem; }
+    .badge { padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; }
+    .badge-success { background: #dcfce7; color: #166534; }
+    .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+    .card { background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border); padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 1.5rem; }
+    h2, h3 { margin-bottom: 1rem; color: #0f172a; }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; margin-bottom: 0.35rem; font-size: 0.875rem; font-weight: 500; }
+    input, select, textarea { width: 100%; padding: 0.6rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem; }
+    input:focus, select:focus { outline: none; border-color: var(--primary); }
+    button { cursor: pointer; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; font-weight: 600; font-size: 0.95rem; transition: background 0.2s; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.85rem; }
+    .product-card { display: flex; flex-direction: column; justify-content: space-between; border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; background: white; }
+    .product-price { font-size: 1.25rem; font-weight: 700; color: #0f172a; margin: 0.5rem 0; }
+    .product-stock { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; }
+    .alert { padding: 0.75rem 1rem; border-radius: 6px; margin-top: 1rem; font-size: 0.9rem; }
+    .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    .hidden { display: none !important; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { text-align: left; padding: 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    th { background: #f1f5f9; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand" id="brand-logo">Apex E-Commerce Test App</div>
+    <div class="nav-user">
+      <span id="user-logged-in-badge" class="badge badge-success hidden">Logged in as: <strong id="logged-user-name"></strong></span>
+      <button id="logout-btn" class="btn-danger btn-sm hidden" onclick="handleLogout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- User Registration & Login Section -->
+    <div class="grid-2" id="auth-section">
+      <!-- Register -->
+      <div class="card" id="register-card">
+        <h3>Customer Registration</h3>
+        <form id="register-form" onsubmit="handleRegister(event)">
+          <div class="form-group">
+            <label for="reg-firstname">First Name</label>
+            <input type="text" id="reg-firstname" required placeholder="John">
+          </div>
+          <div class="form-group">
+            <label for="reg-lastname">Last Name</label>
+            <input type="text" id="reg-lastname" required placeholder="Doe">
+          </div>
+          <div class="form-group">
+            <label for="reg-email">Email Address</label>
+            <input type="email" id="reg-email" required placeholder="john.doe@example.com">
+          </div>
+          <div class="form-group">
+            <label for="reg-phone">Phone Number</label>
+            <input type="text" id="reg-phone" placeholder="+1-555-0199">
+          </div>
+          <div class="form-group">
+            <label for="reg-password">Password</label>
+            <input type="password" id="reg-password" required placeholder="••••••••">
+          </div>
+          <button type="submit" id="register-btn" class="btn-primary">Register Customer</button>
+          <div id="register-message" class="hidden"></div>
+        </form>
+      </div>
+
+      <!-- Login -->
+      <div class="card" id="login-card">
+        <h3>Customer Login</h3>
+        <form id="login-form" onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label for="login-email">Email Address</label>
+            <input type="email" id="login-email" required placeholder="alex.morgan@example.com">
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" required placeholder="••••••••">
+          </div>
+          <button type="submit" id="login-btn" class="btn-primary">Login</button>
+          <div id="login-message" class="hidden"></div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Product Admin Creation -->
+    <div class="card" id="product-admin-section">
+      <h3>Add New Product</h3>
+      <form id="create-product-form" onsubmit="handleCreateProduct(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) 150px; gap: 1rem; align-items: end;">
+        <div>
+          <label for="prod-name">Product Name</label>
+          <input type="text" id="prod-name" required placeholder="e.g. Ergonomic Keyboard">
+        </div>
+        <div>
+          <label for="prod-cat">Category ID</label>
+          <input type="number" id="prod-cat" required value="1" min="1">
+        </div>
+        <div>
+          <label for="prod-price">Price ($)</label>
+          <input type="number" id="prod-price" required step="0.01" min="0" placeholder="49.99">
+        </div>
+        <div>
+          <label for="prod-stock">Stock Quantity</label>
+          <input type="number" id="prod-stock" required min="0" placeholder="100">
+        </div>
+        <div>
+          <button type="submit" id="create-product-btn" class="btn-primary" style="width: 100%;">Create Product</button>
+        </div>
+      </form>
+      <div id="product-create-message" class="hidden"></div>
+    </div>
+
+    <!-- Product Catalog & Cart Grid -->
+    <div class="grid-2">
+      <!-- Products List -->
+      <div>
+        <h3>Product Catalog</h3>
+        <div id="product-list" class="grid-3" style="grid-template-columns: 1fr;">
+          <!-- Product Cards dynamically loaded -->
+        </div>
+      </div>
+
+      <!-- Shopping Cart & Order Placement -->
+      <div>
+        <div class="card" id="cart-section">
+          <h3>Shopping Cart</h3>
+          <div id="cart-empty-msg">Your cart is empty. Please login and add products.</div>
+          <table id="cart-table" class="hidden">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody id="cart-items"></tbody>
+          </table>
+          <div id="cart-summary" class="hidden" style="margin-top: 1rem; text-align: right;">
+            <h4>Total: $<span id="cart-total">0.00</span></h4>
+            <button id="checkout-btn" class="btn-success" style="margin-top: 1rem;" onclick="handleCheckout()">Place Order</button>
+          </div>
+        </div>
+
+        <!-- Order Result Card -->
+        <div class="card hidden" id="order-result-card">
+          <h3 id="order-success">Order Confirmation</h3>
+          <div class="alert alert-success">
+            Order successfully created!
+          </div>
+          <p style="margin-top: 0.5rem;">Order Number: <strong id="order-number-display"></strong></p>
+          <p>Order ID: <strong id="order-id-display"></strong></p>
+          <p>Total Amount: $<strong id="order-total-display"></strong></p>
+          <p>Status: <span id="order-status-display" class="badge badge-success"></span></p>
+          
+          <div style="margin-top: 1.5rem;" id="payment-box">
+            <h4>Make Payment</h4>
+            <button id="pay-btn" class="btn-primary" style="margin-top: 0.5rem;" onclick="handlePayment()">Pay Now</button>
+            <div id="payment-message" class="hidden"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentCustomer = null;
+    let currentCart = null;
+    let currentOrder = null;
+
+    async function fetchProducts() {
+      try {
+        const res = await fetch('/products');
+        const products = await res.json();
+        const container = document.getElementById('product-list');
+        container.innerHTML = '';
+        products.forEach(p => {
+          const div = document.createElement('div');
+          div.className = 'product-card';
+          div.id = `product-card-${p.product_id}`;
+          div.innerHTML = `
+            <div>
+              <h4 class="product-title">${p.product_name}</h4>
+              <p style="color: #64748b; font-size: 0.85rem; margin-top: 0.25rem;">${p.description || ''}</p>
+              <div class="product-price">$${parseFloat(p.price).toFixed(2)}</div>
+              <div class="product-stock" id="stock-prod-${p.product_id}">Stock: ${p.stock_quantity}</div>
+            </div>
+            <button class="btn-primary btn-sm add-to-cart-btn" id="add-to-cart-btn-${p.product_id}" onclick="addToCart(${p.product_id})">Add to Cart</button>
+          `;
+          container.appendChild(div);
+        });
+      } catch (err) {
+        console.error('Error fetching products:', err);
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const payload = {
+        first_name: document.getElementById('reg-firstname').value,
+        last_name: document.getElementById('reg-lastname').value,
+        email: document.getElementById('reg-email').value,
+        phone: document.getElementById('reg-phone').value,
+        password: document.getElementById('reg-password').value,
+        status: 'active'
+      };
+
+      const msgDiv = document.getElementById('register-message');
+      msgDiv.className = 'alert alert-info';
+      msgDiv.textContent = 'Registering...';
+      msgDiv.classList.remove('hidden');
+
+      try {
+        const res = await fetch('/customers', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          msgDiv.className = 'alert alert-success';
+          msgDiv.textContent = `Registration successful! Customer ID: ${data.customer_id}`;
+          setCurrentCustomer(data);
+          document.getElementById('register-form').reset();
+        } else {
+          msgDiv.className = 'alert alert-error';
+          msgDiv.textContent = data.detail || 'Registration failed.';
+        }
+      } catch (err) {
+        msgDiv.className = 'alert alert-error';
+        msgDiv.textContent = 'Network or server error.';
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const payload = {
+        email: document.getElementById('login-email').value,
+        password: document.getElementById('login-password').value
+      };
+      const msgDiv = document.getElementById('login-message');
+      msgDiv.classList.remove('hidden');
+
+      try {
+        const res = await fetch('/customers/login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          msgDiv.className = 'alert alert-success';
+          msgDiv.textContent = 'Login successful!';
+          setCurrentCustomer(data);
+        } else {
+          msgDiv.className = 'alert alert-error';
+          msgDiv.textContent = data.detail || 'Invalid credentials.';
+        }
+      } catch (err) {
+        msgDiv.className = 'alert alert-error';
+        msgDiv.textContent = 'Login failed due to error.';
+      }
+    }
+
+    function setCurrentCustomer(cust) {
+      currentCustomer = cust;
+      document.getElementById('logged-user-name').textContent = cust.name || `${cust.first_name} ${cust.last_name}`;
+      document.getElementById('user-logged-in-badge').classList.remove('hidden');
+      document.getElementById('logout-btn').classList.remove('hidden');
+      loadCart();
+    }
+
+    function handleLogout() {
+      currentCustomer = null;
+      currentCart = null;
+      document.getElementById('user-logged-in-badge').classList.add('hidden');
+      document.getElementById('logout-btn').classList.add('hidden');
+      document.getElementById('cart-table').classList.add('hidden');
+      document.getElementById('cart-summary').classList.add('hidden');
+      document.getElementById('cart-empty-msg').classList.remove('hidden');
+      document.getElementById('login-message').classList.add('hidden');
+      document.getElementById('register-message').classList.add('hidden');
+    }
+
+    async function handleCreateProduct(e) {
+      e.preventDefault();
+      const payload = {
+        product_name: document.getElementById('prod-name').value,
+        category_id: parseInt(document.getElementById('prod-cat').value),
+        price: parseFloat(document.getElementById('prod-price').value),
+        stock_quantity: parseInt(document.getElementById('prod-stock').value),
+        description: 'Quality tested product'
+      };
+      const msgDiv = document.getElementById('product-create-message');
+      msgDiv.classList.remove('hidden');
+
+      try {
+        const res = await fetch('/products', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          msgDiv.className = 'alert alert-success';
+          msgDiv.textContent = `Product '${data.product_name}' created (ID: ${data.product_id})!`;
+          document.getElementById('create-product-form').reset();
+          fetchProducts();
+        } else {
+          msgDiv.className = 'alert alert-error';
+          msgDiv.textContent = data.detail || 'Failed to create product.';
+        }
+      } catch (err) {
+        msgDiv.className = 'alert alert-error';
+        msgDiv.textContent = 'Error connecting to server.';
+      }
+    }
+
+    async function addToCart(productId) {
+      if (!currentCustomer) {
+        alert('Please login or register first to add items to cart.');
+        return;
+      }
+      try {
+        const res = await fetch('/cart/items', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            customer_id: currentCustomer.customer_id,
+            product_id: productId,
+            quantity: 1
+          })
+        });
+        if (res.ok) {
+          loadCart();
+        } else {
+          const err = await res.json();
+          alert(err.detail || 'Could not add to cart.');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function loadCart() {
+      if (!currentCustomer) return;
+      try {
+        const res = await fetch(`/cart/${currentCustomer.customer_id}`);
+        const cart = await res.json();
+        currentCart = cart;
+        const tbody = document.getElementById('cart-items');
+        tbody.innerHTML = '';
+
+        if (cart.items && cart.items.length > 0) {
+          document.getElementById('cart-empty-msg').classList.add('hidden');
+          document.getElementById('cart-table').classList.remove('hidden');
+          document.getElementById('cart-summary').classList.remove('hidden');
+
+          cart.items.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${item.product_name}</td>
+              <td>${item.quantity}</td>
+              <td>$${item.price.toFixed(2)}</td>
+              <td>$${item.item_total.toFixed(2)}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+          document.getElementById('cart-total').textContent = cart.total_amount.toFixed(2);
+        } else {
+          document.getElementById('cart-empty-msg').classList.remove('hidden');
+          document.getElementById('cart-table').classList.add('hidden');
+          document.getElementById('cart-summary').classList.add('hidden');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function handleCheckout() {
+      if (!currentCustomer) return;
+      try {
+        const res = await fetch('/orders', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            customer_id: currentCustomer.customer_id,
+            from_cart: true
+          })
+        });
+        const order = await res.json();
+        if (res.ok) {
+          currentOrder = order;
+          document.getElementById('order-result-card').classList.remove('hidden');
+          document.getElementById('order-number-display').textContent = order.order_number;
+          document.getElementById('order-id-display').textContent = order.order_id;
+          document.getElementById('order-total-display').textContent = order.total_amount.toFixed(2);
+          document.getElementById('order-status-display').textContent = order.status;
+          loadCart();
+          fetchProducts();
+        } else {
+          alert(order.detail || 'Checkout failed.');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function handlePayment() {
+      if (!currentOrder) return;
+      const msgDiv = document.getElementById('payment-message');
+      msgDiv.classList.remove('hidden');
+      try {
+        const res = await fetch('/payments', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            order_id: currentOrder.order_id,
+            payment_method: 'credit_card',
+            amount: currentOrder.total_amount
+          })
+        });
+        const pay = await res.json();
+        if (res.ok) {
+          msgDiv.className = 'alert alert-success';
+          msgDiv.textContent = `Payment processed! Ref: ${pay.payment_reference}`;
+          document.getElementById('order-status-display').textContent = 'confirmed';
+          document.getElementById('pay-btn').classList.add('hidden');
+        } else {
+          msgDiv.className = 'alert alert-error';
+          msgDiv.textContent = pay.detail || 'Payment failed.';
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchProducts();
+    });
+  </script>
+</body>
+</html>
+
