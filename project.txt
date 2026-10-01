@@ -1,0 +1,411 @@
+================================================================================
+E-COMMERCE END-TO-END DATABASE TESTING AUTOMATION FRAMEWORK
+A Complete Beginner-to-Architect Step-by-Step Guide
+================================================================================
+
+1. WHAT IS THIS PROJECT? (THE BIG PICTURE)
+--------------------------------------------------------------------------------
+Imagine you are buying a laptop on Amazon or an online store:
+  1. You create an account and log in on the website (UI).
+  2. The website sends your details to the web server (REST API).
+  3. The server saves your information in a database table called "customers" (Database).
+  4. You browse products, add a laptop to your cart, and place an order.
+  5. The server:
+     - Deducts 1 item from the product inventory stock in the database.
+     - Creates an order record in the "orders" table.
+     - Records each ordered item in the "order_items" table.
+     - Processes your payment and saves the transaction reference in "payments".
+
+NOW ASK YOURSELF:
+What if the UI says "Order Placed Successfully", but in the database:
+  - The payment was never recorded?
+  - The product stock was not decreased, allowing someone else to buy the same item?
+  - The order total amount was calculated incorrectly?
+  - Or an error occurred halfway through, charging your card but losing your order?
+
+THIS is why Database Testing and End-to-End (E2E) Testing are essential!
+
+This project is a real-world, production-quality Automated QA Testing Framework
+that tests and verifies the entire pipeline:
+  User Interface (UI)
+        ↓
+  REST API
+        ↓
+  MySQL Database
+        ↓
+  Business & ACID Rules
+        ↓
+  Automated Validation
+        ↓
+  Reports & Jenkins CI/CD
+
+
+================================================================================
+2. ARCHITECTURE: HOW THE 3 TIERS WORK TOGETHER
+================================================================================
+
+TIER 1: FRONTEND / PRESENTATION LAYER
+  - A real, interactive Single-Page E-Commerce web store (app/static/index.html).
+  - Customers can register, log in, browse products, add items to a shopping cart,
+    place orders, and make payments.
+  - Automated by: Playwright Python using the Page Object Model (POM).
+
+TIER 2: APPLICATION / BUSINESS LOGIC LAYER
+  - A high-performance REST API built with FastAPI and served by Uvicorn.
+  - Exposes endpoints:
+    * Customers: POST /customers, GET /customers/{id}, PUT, DELETE, POST /customers/login
+    * Products:  POST /products, GET /products, GET /products/{id}, PUT, DELETE
+    * Categories:POST /categories, GET /categories, GET /categories/{id}
+    * Cart:      POST /cart, POST /cart/items, GET /cart/{customer_id}
+    * Orders:    POST /orders, GET /orders/{id}, PUT /orders/{id}/status
+    * Payments:  POST /payments, GET /payments/{id}
+  - Enforces input validation rules using Pydantic (e.g., price >= 0, valid emails).
+  - Automated by: Requests library in Python.
+
+TIER 3: DATABASE / DATA STORAGE LAYER
+  - Relational Database Management System: MySQL 8.0 (InnoDB Engine).
+  - Schema name: ecommerce_test
+  - Stores all relational data across 9 interconnected tables.
+  - Enforces database constraints: Primary Keys, Foreign Keys, UNIQUE, CHECK, NOT NULL.
+  - Automated by: mysql-connector-python and direct parameterized SQL queries.
+
+
+================================================================================
+3. TOOLS & TECHNOLOGIES USED (AND WHY WE CHOSE THEM)
+================================================================================
+
+1. Python 3:
+   - Why: The most popular, readable, and widely adopted language for modern QA automation.
+
+2. Pytest:
+   - Why: Industry-standard Python testing framework. Provides flexible fixtures,
+     test discovery, test markers (@pytest.mark.database, @pytest.mark.ui), and
+     clean parameterization.
+
+3. MySQL 8 / MariaDB (InnoDB Storage Engine):
+   - Why: The world's most widely used open-source relational database. Supports strict
+     ACID transactions, CHECK constraints, and Foreign Key cascading rules.
+
+4. mysql-connector-python:
+   - Why: Oracle's official native MySQL database driver for Python. Allows us to
+     execute parameterized SQL queries, manage transactions (COMMIT / ROLLBACK),
+     and fetch results as Python dictionaries.
+
+5. FastAPI & Uvicorn:
+   - Why: Fast, modern Python web framework used to build the local Application Under Test (AUT).
+     Automatically validates request bodies and returns structured JSON responses.
+
+6. Requests:
+   - Why: Python HTTP library used to send API calls (GET, POST, PUT, DELETE) and
+     validate status codes, response headers, and JSON response bodies.
+
+7. Playwright (Python):
+   - Why: Modern, ultra-fast browser automation library from Microsoft. Replaces older
+     tools like Selenium with reliable auto-waiting, screenshot capture, and both
+     headless (background) and headed (visible window) modes.
+
+8. Faker:
+   - Why: Generates realistic, synthetic test data (unique customer names, unique emails,
+     phone numbers, addresses, product names) so tests never collide with duplicate data.
+
+9. pytest-html & JUnit XML:
+   - Why: Generates a self-contained HTML test report (reports/pytest-report.html)
+     and standard JUnit XML files (reports/junit-results.xml) for Jenkins CI/CD.
+
+10. Jenkins CI/CD (Jenkinsfile):
+    - Why: Automates the entire build and test execution pipeline across 14 stages
+      every time new code is committed.
+
+11. Git & GitHub:
+    - Why: Version control system for tracking commits, maintaining code history,
+      and sharing the portfolio repository.
+
+
+================================================================================
+4. DATABASE SCHEMA: THE 9 TABLES EXPLAINED
+================================================================================
+
+Our database "ecommerce_test" contains 9 tables that model a real shopping platform:
+
+1. customers:
+   - customer_id (Primary Key, Auto Increment)
+   - first_name, last_name (VARCHAR, NOT NULL)
+   - email (VARCHAR, UNIQUE, NOT NULL) -> Prevents duplicate registrations
+   - phone, password, status (active, inactive, suspended)
+   - created_at, updated_at (Timestamps)
+
+2. categories:
+   - category_id (Primary Key)
+   - category_name (VARCHAR, UNIQUE) -> E.g., 'Electronics', 'Books'
+   - description, status, created_at
+
+3. products:
+   - product_id (Primary Key)
+   - category_id (Foreign Key referencing categories)
+   - product_name, description
+   - price (DECIMAL) -> Protected by CHECK (price >= 0)
+   - stock_quantity (INT) -> Protected by CHECK (stock_quantity >= 0)
+   - status (active, inactive, discontinued)
+
+4. addresses:
+   - address_id (Primary Key)
+   - customer_id (Foreign Key referencing customers with CASCADE DELETE)
+   - address_line, city, state, postal_code, country, is_default
+
+5. cart:
+   - cart_id (Primary Key)
+   - customer_id (Foreign Key referencing customers, UNIQUE: 1 active cart per user)
+   - status (active, abandoned, converted)
+
+6. cart_items:
+   - cart_item_id (Primary Key)
+   - cart_id (Foreign Key referencing cart)
+   - product_id (Foreign Key referencing products)
+   - quantity (INT) -> Protected by CHECK (quantity > 0)
+   - price (DECIMAL)
+
+7. orders:
+   - order_id (Primary Key)
+   - customer_id (Foreign Key referencing customers)
+   - order_number (VARCHAR, UNIQUE) -> E.g., 'ORD-2026-0001'
+   - total_amount (DECIMAL) -> Protected by CHECK (total_amount >= 0)
+   - status (pending, confirmed, processing, shipped, delivered, cancelled)
+
+8. order_items:
+   - order_item_id (Primary Key)
+   - order_id (Foreign Key referencing orders with CASCADE DELETE)
+   - product_id (Foreign Key referencing products)
+   - quantity, unit_price, subtotal
+
+9. payments:
+   - payment_id (Primary Key)
+   - order_id (Foreign Key referencing orders)
+   - payment_reference (VARCHAR, UNIQUE) -> E.g., 'PAY-REF-9901A'
+   - amount (DECIMAL) -> Protected by CHECK (amount >= 0)
+   - payment_method (credit_card, debit_card, paypal, bank_transfer, crypto)
+   - payment_status (pending, completed, failed, refunded)
+
+
+================================================================================
+5. THE TESTING LAYERS WE BUILT & WHAT THEY VALIDATE
+================================================================================
+
+1. DATABASE TESTING (43 Automated Tests):
+   - CRUD Operations:
+     * Create: Insert records into customer, product, category, order, payment tables.
+     * Read: Retrieve by ID or Email and verify fields match.
+     * Update: Modify fields (e.g., status, price, stock) and verify database persistence.
+     * Delete: Remove records and assert they no longer exist.
+   - Constraints Validation:
+     * Try inserting duplicate email -> Database raises IntegrityError (Duplicate Entry).
+     * Try inserting negative price (-$19.99) -> Database rejects it with CHECK constraint error.
+     * Try inserting negative stock (-5) -> Database rejects it with CHECK constraint error.
+     * Try inserting product with invalid category -> Database rejects with Foreign Key error.
+   - Data Integrity & Orphan Detection:
+     * Detects if any orphan orders exist without a valid customer.
+     * Detects if any orphan order items or payments exist without an order.
+     * Verifies that NOT NULL columns cannot be set to NULL.
+   - ACID Transaction Testing (COMMIT & ROLLBACK):
+     * Successful transaction: Inserts customer and order together, executes COMMIT. Both exist.
+     * Failed transaction: Inserts customer, forces a syntax error on order, executes ROLLBACK.
+       Neither record remains in the database!
+   - SQL JOINs & Aggregations:
+     * Joins across Customers + Orders + Order Items + Products.
+     * Mathematical verification: Verifies orders.total_amount == SUM(order_items.subtotal).
+     * Aggregation metrics: COUNT(), SUM(), AVG(), MIN(), MAX(), GROUP BY, HAVING.
+   - Information Schema Testing:
+     * Queries MySQL INFORMATION_SCHEMA to dynamically verify table names, column data types,
+       primary keys, and foreign keys.
+   - Security & Performance:
+     * SQL Injection Resistance: Tests payloads like "' OR '1'='1" using parameterized SQL
+       to ensure the database treats input as text rather than executable commands.
+     * Query Latency Benchmark: Verifies join queries execute well within <500ms.
+
+2. REST API TESTING (18 Automated Tests):
+   - Validates HTTP status codes: 200 OK, 201 Created, 400 Bad Request, 404 Not Found,
+     409 Conflict, 422 Unprocessable Entity.
+   - Validates JSON response bodies, data types, and required fields.
+   - Tests boundary conditions (zero quantity, negative amounts, non-existent IDs).
+
+3. PLAYWRIGHT UI TESTING (8 Automated Tests):
+   - Built with the Page Object Model (POM):
+     * LoginPage (pages/login_page.py)
+     * CustomerPage (pages/customer_page.py)
+     * ProductPage (pages/product_page.py)
+     * CartPage (pages/cart_page.py)
+     * OrderPage (pages/order_page.py)
+   - Automates:
+     * Customer registration through browser form.
+     * Login with valid credentials (displays username badge) and invalid credentials (shows error).
+     * Browsing product cards and checking inventory stock numbers.
+     * Creating new products via the admin form.
+     * Adding products to cart and verifying the live total calculation.
+     * Placing an order and clicking "Pay Now" to process payment.
+   - Automatic failure screenshots saved to reports/screenshots/.
+
+4. INTEGRATION & END-TO-END TESTING (6 Automated Tests):
+   - API-to-Database Validation:
+     * Create customer via API -> Query MySQL directly -> Compare every field.
+     * Create product via API -> Query MySQL directly -> Compare price and stock.
+     * Process payment via API -> Query MySQL -> Verify order status updated to 'confirmed'.
+   - UI-to-Database Validation:
+     * Fill registration form in browser -> Query MySQL -> Assert row was inserted.
+     * Create product in browser form -> Query MySQL -> Assert product exists in DB.
+   - Complete End-to-End Business Flow:
+     * Customer created -> Address created -> Product listed -> Item added to Cart ->
+       Order checked out -> Payment approved -> Product inventory stock decremented in MySQL ->
+       Full relational validation across all 9 tables -> Safe cascading cleanup.
+
+
+================================================================================
+6. FOLDER STRUCTURE EXPLAINED (WHERE EVERYTHING LIVES)
+================================================================================
+
+app/
+  main.py            -> FastAPI application entry point, health check, mounts UI
+  models.py          -> Pydantic data models for request and response validation
+  routes/            -> REST API endpoints (customers, products, cart, orders, payments)
+  static/index.html  -> Single-page HTML/CSS/JS frontend for the e-commerce store
+
+config/
+  db_config.py       -> Reads configuration from .env (host, port, user, password, headless)
+
+database/
+  connection.py      -> DatabaseManager class, reusable connection functions, parameterized SQL
+  db_setup.py        -> Command-line utility to initialize, seed, or reset the database
+  schema.sql         -> SQL DDL creating all 9 tables and constraints
+  seed_data.sql      -> Realistic sample test data for categories, products, and users
+  cleanup.sql        -> Safe table truncation script
+  reset_database.sql -> Drops and recreates the database cleanly
+
+pages/
+  base_page.py       -> Base POM class with click, fill, navigation, and screenshot helpers
+  login_page.py      -> Page Object for Customer Login
+  customer_page.py   -> Page Object for Customer Registration
+  product_page.py    -> Page Object for Product Catalog & Creation
+  cart_page.py       -> Page Object for Shopping Cart
+  order_page.py      -> Page Object for Order Confirmation & Payment
+
+queries/
+  customer_queries.py-> Reusable SQL queries for customer operations
+  product_queries.py -> Reusable SQL queries for product operations & aggregations
+  order_queries.py   -> Reusable SQL queries for orders and order items
+  payment_queries.py -> Reusable SQL queries for payment operations
+  cart_queries.py    -> Reusable SQL queries for shopping cart operations
+  category_queries.py-> Reusable SQL queries for categories
+
+reports/
+  pytest-report.html -> Self-contained interactive HTML test report
+  junit-results.xml  -> Standard XML report for Jenkins CI
+  execution.log      -> Masked execution log recording query times and test steps
+  screenshots/       -> Screenshots taken automatically when a UI test fails
+
+tests/
+  conftest.py        -> Pytest fixtures (DB connection, API client, browser, page, test data)
+  database/          -> 43 Database and SQL tests
+  api/               -> 18 REST API tests
+  ui/                -> 8 Playwright UI tests
+  integration/       -> 6 Cross-tier Integration and End-to-End tests
+
+utils/
+  data_generator.py  -> Faker utility for unique, collision-free synthetic test data
+  logger.py          -> Masked logging utility preventing sensitive credential leaks
+
+Jenkinsfile          -> 14-stage declarative CI/CD pipeline for automated testing
+docker-compose.yml   -> Optional Docker setup running MySQL and the application together
+requirements.txt     -> Complete list of Python packages required
+
+
+================================================================================
+7. STEP-BY-STEP GUIDE: HOW TO RUN EVERYTHING ON WINDOWS
+================================================================================
+
+STEP 1: Open PowerShell and navigate to the project directory
+--------------------------------------------------------------------------------
+cd "d:\Automation Testing\DataBase Testing"
+
+STEP 2: Activate the Python Virtual Environment
+--------------------------------------------------------------------------------
+.\venv\Scripts\Activate.ps1
+
+STEP 3: Verify the MySQL Database is Initialized
+--------------------------------------------------------------------------------
+python database/db_setup.py init
+(This creates the ecommerce_test database, executes schema.sql, and applies seed_data.sql)
+
+STEP 4: Run the FastAPI Application Server
+--------------------------------------------------------------------------------
+(If not already running in background):
+uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+Visit in your browser:
+  - Web Store: http://127.0.0.1:8000
+  - API Swagger Docs: http://127.0.0.1:8000/docs
+
+STEP 5: Run the Automated Tests!
+--------------------------------------------------------------------------------
+# Run the entire suite of 75 tests:
+pytest -v
+
+# Run only Database tests (43 tests):
+pytest -m database -v
+
+# Run only API tests (18 tests):
+pytest -m api -v
+
+# Run only UI tests (8 tests):
+pytest -m ui -v
+
+# Run only Integration / End-to-End tests (6 tests):
+pytest -m integration -v
+
+# Run UI tests in HEADED mode (watch the Chrome browser interact live):
+pytest -m ui --headed -v
+
+STEP 6: View the Generated Reports
+--------------------------------------------------------------------------------
+Open the generated HTML report in any web browser:
+  d:\Automation Testing\DataBase Testing\reports\pytest-report.html
+
+
+================================================================================
+8. KEY QA CONCEPTS TO KNOW FOR INTERVIEWS
+================================================================================
+
+1. What is the Page Object Model (POM)?
+   POM is a design pattern where each web page has its own Python class.
+   Locators (like buttons and inputs) and actions (like clicking or typing) are kept
+   inside the page class, completely separated from the test files.
+   If a button ID changes in the UI, you only update it once in the page object,
+   rather than rewriting 20 test files!
+
+2. What are Parameterized SQL Queries and Why Do We Use Them?
+   Instead of string concatenation:
+     BAD:  f"SELECT * FROM customers WHERE email = '{user_input}'"  (vulnerable to SQL injection!)
+     GOOD: cursor.execute("SELECT * FROM customers WHERE email = %s", (user_input,))
+   Parameterized queries send the SQL statement and the data separately. The database
+   engine never treats data as executable SQL commands, completely preventing SQL injection.
+
+3. What are ACID Transactions?
+   - Atomicity: All operations succeed, or none do (ROLLBACK).
+   - Consistency: Database moves from one valid state to another, respecting all constraints.
+   - Isolation: Concurrent transactions do not interfere with one another.
+   - Durability: Once committed, data survives power outages or server crashes.
+
+4. What is Headless vs. Headed Browser Mode?
+   - Headless: Browser runs in system memory without rendering a visual window. Used for
+     speed in automated CI/CD pipelines (like Jenkins).
+   - Headed: Browser renders an actual visible window on screen. Used for debugging,
+     demos, and observing UI actions live.
+
+5. Why is Database Teardown / Cleanup Important?
+   If Test A inserts a customer with email "test@example.com" and leaves it in the database,
+   Test B might fail when trying to insert the same email due to a UNIQUE constraint!
+   Every test fixture must cleanly tear down its created records in child-to-parent order
+   so the database remains predictable and repeatable for every test run.
+
+================================================================================
+CONGRATULATIONS!
+You now have a complete, enterprise-grade, portfolio-ready Database Testing
+Automation Framework running 100% verified on your machine!
+================================================================================
