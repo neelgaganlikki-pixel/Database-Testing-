@@ -3,147 +3,280 @@ pipeline {
 
     environment {
         PYTHONUNBUFFERED = '1'
+
         DB_HOST = '127.0.0.1'
         DB_PORT = '3306'
         DB_NAME = 'ecommerce_test'
         DB_USER = 'root'
         DB_PASSWORD = ''
+
         API_BASE_URL = 'http://127.0.0.1:8000'
         HEADLESS = 'true'
     }
 
     stages {
+
         stage('1. Checkout') {
             steps {
+                echo '========================================'
                 echo 'Checking out source repository...'
+                echo '========================================'
+
                 checkout scm
             }
         }
 
-        stage('2. Create Python Environment') {
+        stage('2. Verify Python') {
             steps {
-                echo 'Setting up Python virtual environment...'
+                echo '========================================'
+                echo 'Verifying Python installation...'
+                echo '========================================'
+
                 bat '''
-                    if not exist venv (
+                    where python
+                    python --version
+                    python -m pip --version
+                '''
+            }
+        }
+
+        stage('3. Create Python Environment') {
+            steps {
+                echo '========================================'
+                echo 'Creating Python virtual environment...'
+                echo '========================================'
+
+                bat '''
+                    if exist venv (
+                        echo Virtual environment already exists.
+                    ) else (
+                        echo Creating new virtual environment...
                         python -m venv venv
                     )
+
+                    echo.
+                    echo Python version inside virtual environment:
+                    venv\\Scripts\\python.exe --version
+
+                    echo.
+                    echo Pip version inside virtual environment:
+                    venv\\Scripts\\python.exe -m pip --version
                 '''
             }
         }
 
-        stage('3. Install Dependencies') {
+        stage('4. Install Dependencies') {
             steps {
-                echo 'Installing required testing dependencies...'
+                echo '========================================'
+                echo 'Installing Python dependencies...'
+                echo '========================================'
+
                 bat '''
-                    call venv\\Scripts\\activate.bat
-                    pip install --upgrade pip
-                    pip install -r requirements.txt
-                    playwright install chromium
+                    venv\\Scripts\\python.exe -m pip install --upgrade pip
+
+                    venv\\Scripts\\python.exe -m pip install -r requirements.txt
+
+                    echo.
+                    echo Installing Playwright Chromium...
+                    venv\\Scripts\\python.exe -m playwright install chromium
                 '''
             }
         }
 
-        stage('4. Verify MySQL') {
+        stage('5. Prepare Reports Directory') {
             steps {
-                echo 'Verifying MySQL service connection...'
+                echo '========================================'
+                echo 'Preparing reports directory...'
+                echo '========================================'
+
                 bat '''
-                    call venv\\Scripts\\activate.bat
-                    python -c "import mysql.connector; conn = mysql.connector.connect(host='%DB_HOST%', port=%DB_PORT%, user='%DB_USER%', password='%DB_PASSWORD%'); print('MySQL Server Online'); conn.close()"
+                    if not exist reports mkdir reports
+
+                    if exist reports\\*.xml (
+                        del /Q reports\\*.xml
+                    )
+
+                    if exist reports\\pytest-report.html (
+                        del /Q reports\\pytest-report.html
+                    )
+
+                    echo Reports directory ready.
                 '''
             }
         }
 
-        stage('5. Setup Database') {
+        stage('6. Verify MySQL') {
             steps {
-                echo 'Creating schema and seeding test data...'
+                echo '========================================'
+                echo 'Verifying MySQL connection...'
+                echo '========================================'
+
                 bat '''
-                    call venv\\Scripts\\activate.bat
-                    python database/db_setup.py init
+                    venv\\Scripts\\python.exe -c "import mysql.connector; conn = mysql.connector.connect(host='%DB_HOST%', port=%DB_PORT%, user='%DB_USER%', password='%DB_PASSWORD%'); print('MySQL Server Online'); print('Host: %DB_HOST%'); print('Port: %DB_PORT%'); conn.close()"
                 '''
             }
         }
 
-        stage('6. Start Application') {
+        stage('7. Setup Database') {
             steps {
-                echo 'Starting FastAPI application daemon...'
+                echo '========================================'
+                echo 'Creating database schema and test data...'
+                echo '========================================'
+
                 bat '''
-                    call venv\\Scripts\\activate.bat
-                    start /b uvicorn app.main:app --host 127.0.0.1 --port 8000
+                    venv\\Scripts\\python.exe database\\db_setup.py init
+                '''
+            }
+        }
+
+        stage('8. Start Application') {
+            steps {
+                echo '========================================'
+                echo 'Starting FastAPI application...'
+                echo '========================================'
+
+                bat '''
+                    start "FastAPI" /B venv\\Scripts\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+                    echo Waiting for FastAPI application...
                     timeout /t 5 /nobreak >nul
-                    python -c "import requests; r = requests.get('http://127.0.0.1:8000/health'); assert r.status_code == 200, 'App failed to start'"
+
+                    echo Checking application health...
+
+                    venv\\Scripts\\python.exe -c "import requests; r = requests.get('http://127.0.0.1:8000/health', timeout=15); print('API Status:', r.status_code); assert r.status_code == 200, 'FastAPI application failed to start'"
+
+                    echo FastAPI application is running successfully.
                 '''
             }
         }
 
-        stage('7. Run Database Tests') {
+        stage('9. Run Database Tests') {
             steps {
-                echo 'Executing Database Test Suite...'
+                echo '========================================'
+                echo 'Running Database Tests...'
+                echo '========================================'
+
                 bat '''
-                    call venv\\Scripts\\activate.bat
-                    pytest -m database -v --junitxml=reports/junit-database.xml
+                    venv\\Scripts\\python.exe -m pytest ^
+                        -m database ^
+                        -v ^
+                        --junitxml=reports\\junit-database.xml
                 '''
             }
         }
 
-        stage('8. Run API Tests') {
+        stage('10. Run API Tests') {
             steps {
-                echo 'Executing REST API Test Suite...'
+                echo '========================================'
+                echo 'Running API Tests...'
+                echo '========================================'
+
                 bat '''
-                    call venv\\Scripts\\activate.bat
-                    pytest -m api -v --junitxml=reports/junit-api.xml
+                    venv\\Scripts\\python.exe -m pytest ^
+                        -m api ^
+                        -v ^
+                        --junitxml=reports\\junit-api.xml
                 '''
             }
         }
 
-        stage('9. Run UI Tests') {
+        stage('11. Run UI Tests') {
             steps {
-                echo 'Executing Playwright UI Test Suite...'
+                echo '========================================'
+                echo 'Running UI Tests...'
+                echo '========================================'
+
                 bat '''
-                    call venv\\Scripts\\activate.bat
-                    pytest -m ui -v --junitxml=reports/junit-ui.xml
+                    venv\\Scripts\\python.exe -m pytest ^
+                        -m ui ^
+                        -v ^
+                        --junitxml=reports\\junit-ui.xml
                 '''
             }
         }
 
-        stage('10. Run Integration Tests') {
+        stage('12. Run Integration Tests') {
             steps {
-                echo 'Executing End-to-End & Integration Suite...'
+                echo '========================================'
+                echo 'Running Integration Tests...'
+                echo '========================================'
+
                 bat '''
-                    call venv\\Scripts\\activate.bat
-                    pytest -m integration -v --junitxml=reports/junit-integration.xml
+                    venv\\Scripts\\python.exe -m pytest ^
+                        -m integration ^
+                        -v ^
+                        --junitxml=reports\\junit-integration.xml
                 '''
             }
         }
 
-        stage('11. Generate Reports') {
+        stage('13. Generate Reports') {
             steps {
-                echo 'Generating consolidated HTML and JUnit reports...'
+                echo '========================================'
+                echo 'Generating consolidated test reports...'
+                echo '========================================'
+
                 bat '''
-                    call venv\\Scripts\\activate.bat
-                    pytest -v --html=reports/pytest-report.html --self-contained-html --junitxml=reports/junit-results.xml
+                    venv\\Scripts\\python.exe -m pytest ^
+                        -v ^
+                        --html=reports\\pytest-report.html ^
+                        --self-contained-html ^
+                        --junitxml=reports\\junit-results.xml
                 '''
             }
         }
     }
 
     post {
+
         always {
-            echo 'Archiving test artifacts and reports...'
-            junit testResults: 'reports/*.xml', allowEmptyResults: true
-            archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true
+            echo '========================================'
+            echo 'Archiving Test Reports and Artifacts'
+            echo '========================================'
+
+            junit(
+                testResults: 'reports/*.xml',
+                allowEmptyResults: true
+            )
+
+            archiveArtifacts(
+                artifacts: 'reports/**',
+                allowEmptyArchive: true,
+                fingerprint: true
+            )
         }
+
         success {
-            echo 'All test stages completed successfully!'
+            echo '========================================'
+            echo 'PIPELINE SUCCESS'
+            echo '========================================'
+            echo 'All database, API, UI and integration tests completed successfully.'
         }
+
         failure {
-            echo 'Pipeline failed due to test assertion or build errors.'
+            echo '========================================'
+            echo 'PIPELINE FAILED'
+            echo '========================================'
+            echo 'One or more pipeline stages failed.'
+            echo 'Please check the Jenkins console output and test reports.'
         }
+
+        unstable {
+            echo '========================================'
+            echo 'PIPELINE UNSTABLE'
+            echo '========================================'
+            echo 'Some tests may have failed or produced unstable results.'
+        }
+
         cleanup {
-            echo 'Tearing down test environment...'
+            echo '========================================'
+            echo 'Cleaning Up Test Environment'
+            echo '========================================'
+
             bat '''
-                taskkill /F /IM uvicorn.exe /T 2>nul || exit 0
+                taskkill /F /IM uvicorn.exe /T >nul 2>&1
+                exit /b 0
             '''
         }
     }
 }
-
