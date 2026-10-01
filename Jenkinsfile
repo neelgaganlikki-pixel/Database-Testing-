@@ -12,6 +12,9 @@ pipeline {
 
         API_BASE_URL = 'http://127.0.0.1:8000'
         HEADLESS = 'true'
+
+        // Python installation confirmed on this Jenkins machine
+        PYTHON_EXE = 'C:\\Users\\NEELGAGAN B R\\AppData\\Local\\Programs\\Python\\Python314\\python.exe'
     }
 
     stages {
@@ -19,7 +22,7 @@ pipeline {
         stage('1. Checkout') {
             steps {
                 echo '========================================'
-                echo 'Checking out source repository...'
+                echo '1. CHECKOUT'
                 echo '========================================'
 
                 checkout scm
@@ -29,13 +32,20 @@ pipeline {
         stage('2. Verify Python') {
             steps {
                 echo '========================================'
-                echo 'Verifying Python installation...'
+                echo '2. VERIFY PYTHON'
                 echo '========================================'
 
                 bat '''
-                    where python
-                    python --version
-                    python -m pip --version
+                    echo Python executable:
+                    "%PYTHON_EXE%"
+
+                    echo.
+                    echo Python version:
+                    "%PYTHON_EXE%" --version
+
+                    echo.
+                    echo Pip version:
+                    "%PYTHON_EXE%" -m pip --version
                 '''
             }
         }
@@ -43,23 +53,21 @@ pipeline {
         stage('3. Create Python Environment') {
             steps {
                 echo '========================================'
-                echo 'Creating Python virtual environment...'
+                echo '3. CREATE PYTHON VIRTUAL ENVIRONMENT'
                 echo '========================================'
 
                 bat '''
                     if exist venv (
-                        echo Virtual environment already exists.
+                        echo Existing virtual environment found.
                     ) else (
-                        echo Creating new virtual environment...
-                        python -m venv venv
+                        echo Creating virtual environment...
+                        "%PYTHON_EXE%" -m venv venv
                     )
 
                     echo.
-                    echo Python version inside virtual environment:
-                    venv\\Scripts\\python.exe --version
+                    echo Verifying virtual environment...
 
-                    echo.
-                    echo Pip version inside virtual environment:
+                    venv\\Scripts\\python.exe --version
                     venv\\Scripts\\python.exe -m pip --version
                 '''
             }
@@ -68,16 +76,22 @@ pipeline {
         stage('4. Install Dependencies') {
             steps {
                 echo '========================================'
-                echo 'Installing Python dependencies...'
+                echo '4. INSTALL DEPENDENCIES'
                 echo '========================================'
 
                 bat '''
+                    echo Upgrading pip...
+
                     venv\\Scripts\\python.exe -m pip install --upgrade pip
+
+                    echo.
+                    echo Installing requirements...
 
                     venv\\Scripts\\python.exe -m pip install -r requirements.txt
 
                     echo.
                     echo Installing Playwright Chromium...
+
                     venv\\Scripts\\python.exe -m playwright install chromium
                 '''
             }
@@ -86,21 +100,13 @@ pipeline {
         stage('5. Prepare Reports Directory') {
             steps {
                 echo '========================================'
-                echo 'Preparing reports directory...'
+                echo '5. PREPARE REPORT DIRECTORY'
                 echo '========================================'
 
                 bat '''
                     if not exist reports mkdir reports
 
-                    if exist reports\\*.xml (
-                        del /Q reports\\*.xml
-                    )
-
-                    if exist reports\\pytest-report.html (
-                        del /Q reports\\pytest-report.html
-                    )
-
-                    echo Reports directory ready.
+                    echo Reports directory is ready.
                 '''
             }
         }
@@ -108,7 +114,7 @@ pipeline {
         stage('6. Verify MySQL') {
             steps {
                 echo '========================================'
-                echo 'Verifying MySQL connection...'
+                echo '6. VERIFY MYSQL'
                 echo '========================================'
 
                 bat '''
@@ -120,7 +126,7 @@ pipeline {
         stage('7. Setup Database') {
             steps {
                 echo '========================================'
-                echo 'Creating database schema and test data...'
+                echo '7. SETUP DATABASE'
                 echo '========================================'
 
                 bat '''
@@ -132,20 +138,26 @@ pipeline {
         stage('8. Start Application') {
             steps {
                 echo '========================================'
-                echo 'Starting FastAPI application...'
+                echo '8. START FASTAPI APPLICATION'
                 echo '========================================'
 
                 bat '''
+                    echo Starting FastAPI...
+
                     start "FastAPI" /B venv\\Scripts\\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
+                    echo.
                     echo Waiting for FastAPI application...
+
                     timeout /t 5 /nobreak >nul
 
-                    echo Checking application health...
+                    echo.
+                    echo Checking FastAPI health endpoint...
 
-                    venv\\Scripts\\python.exe -c "import requests; r = requests.get('http://127.0.0.1:8000/health', timeout=15); print('API Status:', r.status_code); assert r.status_code == 200, 'FastAPI application failed to start'"
+                    venv\\Scripts\\python.exe -c "import requests; r = requests.get('http://127.0.0.1:8000/health', timeout=15); print('HTTP Status:', r.status_code); assert r.status_code == 200, 'FastAPI application failed to start'"
 
-                    echo FastAPI application is running successfully.
+                    echo.
+                    echo FastAPI application started successfully.
                 '''
             }
         }
@@ -153,7 +165,7 @@ pipeline {
         stage('9. Run Database Tests') {
             steps {
                 echo '========================================'
-                echo 'Running Database Tests...'
+                echo '9. RUN DATABASE TESTS'
                 echo '========================================'
 
                 bat '''
@@ -168,7 +180,7 @@ pipeline {
         stage('10. Run API Tests') {
             steps {
                 echo '========================================'
-                echo 'Running API Tests...'
+                echo '10. RUN API TESTS'
                 echo '========================================'
 
                 bat '''
@@ -183,7 +195,7 @@ pipeline {
         stage('11. Run UI Tests') {
             steps {
                 echo '========================================'
-                echo 'Running UI Tests...'
+                echo '11. RUN UI TESTS'
                 echo '========================================'
 
                 bat '''
@@ -198,7 +210,7 @@ pipeline {
         stage('12. Run Integration Tests') {
             steps {
                 echo '========================================'
-                echo 'Running Integration Tests...'
+                echo '12. RUN INTEGRATION TESTS'
                 echo '========================================'
 
                 bat '''
@@ -213,7 +225,7 @@ pipeline {
         stage('13. Generate Reports') {
             steps {
                 echo '========================================'
-                echo 'Generating consolidated test reports...'
+                echo '13. GENERATE CONSOLIDATED REPORTS'
                 echo '========================================'
 
                 bat '''
@@ -231,7 +243,7 @@ pipeline {
 
         always {
             echo '========================================'
-            echo 'Archiving Test Reports and Artifacts'
+            echo 'ARCHIVING REPORTS'
             echo '========================================'
 
             junit(
@@ -250,27 +262,21 @@ pipeline {
             echo '========================================'
             echo 'PIPELINE SUCCESS'
             echo '========================================'
-            echo 'All database, API, UI and integration tests completed successfully.'
+
+            echo 'All test stages completed successfully.'
         }
 
         failure {
             echo '========================================'
             echo 'PIPELINE FAILED'
             echo '========================================'
-            echo 'One or more pipeline stages failed.'
-            echo 'Please check the Jenkins console output and test reports.'
-        }
 
-        unstable {
-            echo '========================================'
-            echo 'PIPELINE UNSTABLE'
-            echo '========================================'
-            echo 'Some tests may have failed or produced unstable results.'
+            echo 'Check the failed stage in the Jenkins console.'
         }
 
         cleanup {
             echo '========================================'
-            echo 'Cleaning Up Test Environment'
+            echo 'CLEANUP'
             echo '========================================'
 
             bat '''
