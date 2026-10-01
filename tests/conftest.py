@@ -19,6 +19,15 @@ from queries.customer_queries import INSERT_CUSTOMER, SELECT_CUSTOMER_BY_ID, DEL
 from queries.product_queries import INSERT_PRODUCT, SELECT_PRODUCT_BY_ID, DELETE_PRODUCT
 from queries.order_queries import INSERT_ORDER, SELECT_ORDER_BY_ID, DELETE_ORDER
 
+def pytest_addoption(parser):
+    """Adds custom command line options to pytest."""
+    parser.addoption(
+        "--headed",
+        action="store_true",
+        default=False,
+        help="Run browser tests in headed mode (visible browser window)"
+    )
+
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_suite():
     """Session fixture to ensure the database schema and seed data are ready."""
@@ -84,10 +93,19 @@ def api_client():
     return client
 
 @pytest.fixture(scope="session")
-def browser_instance():
-    """Playwright browser instance fixture."""
+def browser_instance(request):
+    """Playwright browser instance fixture supporting both headless and headed modes."""
+    # Check CLI flag --headed first; fallback to DBConfig.HEADLESS (.env)
+    cli_headed = request.config.getoption("--headed")
+    env_headless = DBConfig.HEADLESS
+    run_headless = not cli_headed if cli_headed else env_headless
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=DBConfig.HEADLESS)
+        # If headed, slow down operations slightly (slow_mo=200ms) so human eye can follow
+        browser = p.chromium.launch(
+            headless=run_headless,
+            slow_mo=200 if not run_headless else 0
+        )
         yield browser
         browser.close()
 
@@ -175,4 +193,3 @@ def test_order(test_customer):
         db.execute_delete("DELETE FROM payments WHERE order_id = %s;", (order_id,))
         db.execute_delete("DELETE FROM order_items WHERE order_id = %s;", (order_id,))
         db.execute_delete(DELETE_ORDER, (order_id,))
-
