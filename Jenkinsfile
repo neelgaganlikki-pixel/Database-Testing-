@@ -7,6 +7,11 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '10'))
     }
 
+    triggers {
+        githubPush()
+        pollSCM('H/2 * * * *')
+    }
+
     environment {
         PYTHONUNBUFFERED = '1'
         JENKINS_NODE_COOKIE = 'dontKillMe'
