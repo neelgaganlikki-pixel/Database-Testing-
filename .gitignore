@@ -1,0 +1,38 @@
+# Environment variables
+.env
+
+# Python Virtual Environment
+venv/
+.venv/
+env/
+ENV/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Testing & Reports
+.pytest_cache/
+reports/
+test-results/
+playwright-report/
+test-results/
+screenshots/
+*.log
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Database runtime & archives
+mariadb/
+mariadb-10.11.8-winx64/
+mariadb.zip
+mysql-server/
+data/
+db_data/
+test_data/
