@@ -317,7 +317,45 @@ requirements.txt     -> Complete list of Python packages required
 
 
 ================================================================================
-7. STEP-BY-STEP GUIDE: HOW TO RUN EVERYTHING ON WINDOWS
+7. COMMAND CHEAT SHEET (WITH ONE-LINE DESCRIPTIONS)
+================================================================================
+
+python run.py status
+-> Checks whether the local MySQL database and FastAPI application server are online and healthy.
+
+python run.py start
+-> Launches both MySQL (port 3306) and FastAPI (port 8000) servers in the background.
+
+python run.py stop
+-> Safely terminates all running background MySQL and FastAPI server processes to free resources.
+
+python run.py test
+-> Executes the complete automated test suite of all 75 tests across Database, API, UI, and Integration layers.
+
+python run.py test --db
+-> Runs only the 43 Database tests validating CRUD, constraints, joins, aggregations, schema, and transactions.
+
+python run.py test --api
+-> Runs only the 18 REST API tests validating HTTP status codes, payload schemas, and error responses.
+
+python run.py test --ui
+-> Runs the 8 browser UI tests silently in the background (headless mode) using Playwright.
+
+python run.py test --ui --headed
+-> Runs the browser UI tests in a visible Chrome window with pacing so you can watch live interactions.
+
+python run.py test --e2e
+-> Runs the 6 Integration and End-to-End tests validating data consistency from UI to API down to MySQL.
+
+python run.py init-db
+-> Recreates the ecommerce_test schema and seeds realistic baseline test data into all 9 tables.
+
+python run.py report
+-> Instantly opens the generated interactive HTML test report in your default web browser.
+
+
+================================================================================
+8. STEP-BY-STEP GUIDE: MANUAL COMMANDS FOR WINDOWS
 ================================================================================
 
 STEP 1: Open PowerShell and navigate to the project directory
@@ -369,7 +407,7 @@ Open the generated HTML report in any web browser:
 
 
 ================================================================================
-8. KEY QA CONCEPTS TO KNOW FOR INTERVIEWS
+9. KEY QA CONCEPTS TO KNOW FOR INTERVIEWS
 ================================================================================
 
 1. What is the Page Object Model (POM)?
