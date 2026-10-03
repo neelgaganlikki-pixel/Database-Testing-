@@ -60,7 +60,21 @@ def setup_test_suite():
     """
     Session fixture to ensure the database schema and seed data
     are ready before the test suite starts.
+    Also cleans up previous test artifacts (screenshots, videos).
     """
+
+    artifacts_dirs = [
+        ROOT_DIR / "reports" / "screenshots",
+        ROOT_DIR / "reports" / "videos",
+    ]
+    for d in artifacts_dirs:
+        if d.exists():
+            for f in d.glob("*"):
+                try:
+                    if f.is_file():
+                        f.unlink()
+                except Exception:
+                    pass
 
     logger.info("Initializing test suite database setup...")
 
@@ -327,84 +341,81 @@ def page(browser_instance, request):
     Playwright page fixture.
 
     Creates a fresh browser context and page for every test.
-
-    Captures a screenshot automatically when a test fails.
+    Records video and captures screenshot on test failure.
+    Retains video ONLY for failed tests (as FAILED_<test_name>.webm);
+    automatically discards video for passed and skipped tests.
     """
+    videos_dir = ROOT_DIR / "reports" / "videos"
+    videos_dir.mkdir(parents=True, exist_ok=True)
 
     context = browser_instance.new_context(
         viewport={
             "width": 1280,
             "height": 720,
-        }
+        },
+        record_video_dir=str(videos_dir),
+        record_video_size={"width": 1280, "height": 720},
     )
 
     page = context.new_page()
 
     yield page
 
+    # Video reference before context closes
+    video = page.video
+
+    # Check if test failed
+    failed = hasattr(request.node, "rep_call") and request.node.rep_call.failed
+
+    safe_test_name = (
+        request.node.name
+        .replace("/", "_")
+        .replace("\\", "_")
+        .replace(":", "_")
+        .replace("*", "_")
+        .replace("?", "_")
+        .replace('"', "_")
+        .replace("<", "_")
+        .replace(">", "_")
+        .replace("|", "_")
+    )
+
     # --------------------------------------------------------
     # Screenshot on test failure
     # --------------------------------------------------------
-
-    if (
-        hasattr(request.node, "rep_call")
-        and request.node.rep_call.failed
-    ):
-
-        screenshots_dir = (
-            ROOT_DIR
-            / "reports"
-            / "screenshots"
-        )
-
-        screenshots_dir.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-
-        # Replace invalid Windows filename characters
-        safe_test_name = (
-            request.node.name
-            .replace("/", "_")
-            .replace("\\", "_")
-            .replace(":", "_")
-            .replace("*", "_")
-            .replace("?", "_")
-            .replace('"', "_")
-            .replace("<", "_")
-            .replace(">", "_")
-            .replace("|", "_")
-        )
-
-        screenshot_path = (
-            screenshots_dir
-            / f"{safe_test_name}.png"
-        )
-
+    if failed:
+        screenshots_dir = ROOT_DIR / "reports" / "screenshots"
+        screenshots_dir.mkdir(parents=True, exist_ok=True)
+        screenshot_path = screenshots_dir / f"{safe_test_name}.png"
         try:
-
-            page.screenshot(
-                path=str(screenshot_path),
-                full_page=True,
-            )
-
+            page.screenshot(path=str(screenshot_path), full_page=True)
             logger.warning(
-                f"UI Test failed! "
-                f"Screenshot captured at: "
-                f"{screenshot_path}"
+                f"UI Test failed! Screenshot captured at: {screenshot_path}"
             )
-
         except Exception as e:
-
-            logger.warning(
-                f"Unable to capture screenshot: {e}"
-            )
+            logger.warning(f"Unable to capture screenshot: {e}")
 
     # --------------------------------------------------------
-    # Close browser context
+    # Close browser context to finalize video recording
     # --------------------------------------------------------
-
     context.close()
+
+    # --------------------------------------------------------
+    # Video retention logic (retains ONLY on failure)
+    # --------------------------------------------------------
+    if video:
+        try:
+            if failed:
+                failed_video_path = videos_dir / f"FAILED_{safe_test_name}.webm"
+                video.save_as(str(failed_video_path))
+                video.delete()
+                logger.warning(
+                    f"UI Test failed! Video saved at: {failed_video_path}"
+                )
+            else:
+                video.delete()
+        except Exception as e:
+            logger.warning(f"Unable to process video: {e}")
 
 
 # ============================================================
