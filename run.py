@@ -29,6 +29,11 @@ MYSQLD = ROOT_DIR / "mariadb" / "bin" / "mysqld.exe"
 DATA_DIR = ROOT_DIR / "mariadb" / "data"
 REPORT_HTML = ROOT_DIR / "reports" / "pytest-report.html"
 
+# If run from outside the virtual environment, re-delegate to venv python
+if VENV_PYTHON.exists() and Path(sys.executable).resolve() != VENV_PYTHON.resolve():
+    res = subprocess.run([str(VENV_PYTHON), str(Path(__file__).resolve())] + sys.argv[1:])
+    sys.exit(res.returncode)
+
 # Fallback to system python if venv not found
 PYTHON_EXE = str(VENV_PYTHON) if VENV_PYTHON.exists() else sys.executable
 PYTEST_EXE = str(VENV_PYTEST) if VENV_PYTEST.exists() else "pytest"
@@ -79,7 +84,6 @@ def start_services():
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )
-            time.sleep(2)
         else:
             print("  [WARN] Local MariaDB binary not found. Ensure MySQL is running on port 3306.")
 
@@ -91,7 +95,13 @@ def start_services():
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
-        time.sleep(2)
+
+    # Wait up to 10 seconds for services to become healthy
+    for _ in range(10):
+        time.sleep(1)
+        st = check_status()
+        if st["mysql"] and st["fastapi"]:
+            break
 
     print_status()
 

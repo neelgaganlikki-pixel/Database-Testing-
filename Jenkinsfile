@@ -131,7 +131,7 @@ pipeline {
                 echo '========================================'
 
                 bat '''
-                    venv\\Scripts\\python.exe -c "import mysql.connector; conn = mysql.connector.connect(host='%DB_HOST%', port=%DB_PORT%, user='%DB_USER%', password='%DB_PASSWORD%'); print('MySQL Server Online'); print('Host: %DB_HOST%'); print('Port: %DB_PORT%'); conn.close()"
+                    venv\\Scripts\\python.exe database\\verify_mysql.py
                 '''
             }
         }
