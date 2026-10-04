@@ -145,6 +145,8 @@ def run_tests(args: list):
         cmd.extend(["-m", "integration"])
     elif "--smoke" in args or "smoke" in args:
         cmd.extend(["-m", "smoke"])
+    elif "--healing" in args or "healing" in args or "--self-healing" in args:
+        cmd.extend(["tests/self_healing/"])
 
     if "--headed" in args:
         cmd.append("--headed")
@@ -177,12 +179,13 @@ COMMANDS:
   python run.py init-db               Reset & seed MySQL database
 
 TEST COMMANDS:
-  python run.py test                  Run all 75 tests
+  python run.py test                  Run all 100 tests (including Self-Healing)
   python run.py test --db             Run Database & SQL tests
   python run.py test --api            Run REST API tests
   python run.py test --ui             Run UI tests (headless)
   python run.py test --ui --headed    Run UI tests (visible browser window!)
   python run.py test --e2e            Run Integration & End-to-End tests
+  python run.py test --healing        Run Self-Healing Engine tests
 
 REPORTING:
   python run.py report                Open interactive HTML report in browser

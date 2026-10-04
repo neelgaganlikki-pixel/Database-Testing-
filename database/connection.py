@@ -6,9 +6,12 @@ from mysql.connector.cursor import MySQLCursorDict
 
 from config.db_config import get_db_config, get_server_config
 from utils.logger import logger
+from self_healing.config import SelfHealingConfig
+from self_healing.db_healer import DatabaseHealer, SelfHealingRow
+
 
 class DatabaseManager:
-    """Manages MySQL database connections and operations safely."""
+    """Manages MySQL database connections and operations safely with self-healing capabilities."""
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or get_db_config()
@@ -86,7 +89,7 @@ class DatabaseManager:
     def execute_select(
         self, query: str, params: Optional[Union[Tuple, Dict, List]] = None, dictionary: bool = True
     ) -> List[Dict[str, Any]]:
-        """Executes a SELECT query and returns all matching records as dictionaries."""
+        """Executes a SELECT query and returns all matching records as SelfHealingRow dictionaries."""
         start_time = time.perf_counter()
         conn = self.connect()
         cursor = conn.cursor(dictionary=dictionary)
@@ -96,8 +99,22 @@ class DatabaseManager:
             rows = cursor.fetchall()
             elapsed = (time.perf_counter() - start_time) * 1000
             logger.debug(f"SELECT completed in {elapsed:.2f}ms. Returned {len(rows)} records.")
+            if dictionary and rows:
+                return [SelfHealingRow(r) for r in rows]
             return rows
         except Error as e:
+            # Self-healing attempt for SELECT queries
+            if SelfHealingConfig.is_db_enabled() and DatabaseHealer.is_read_only_query(query):
+                healed_query, conf = DatabaseHealer.heal_select_query(query, e)
+                if healed_query and conf >= SelfHealingConfig.get_confidence_threshold():
+                    logger.info(f"Retrying SELECT with healed query: {healed_query}")
+                    cursor.close()
+                    cursor = conn.cursor(dictionary=dictionary)
+                    cursor.execute(healed_query, params or ())
+                    rows = cursor.fetchall()
+                    if dictionary and rows:
+                        return [SelfHealingRow(r) for r in rows]
+                    return rows
             logger.error(f"SQL SELECT error for query [{query}]: {e}")
             raise
         finally:
@@ -106,7 +123,7 @@ class DatabaseManager:
     def fetch_one(
         self, query: str, params: Optional[Union[Tuple, Dict, List]] = None, dictionary: bool = True
     ) -> Optional[Dict[str, Any]]:
-        """Executes a SELECT query and returns the first row or None."""
+        """Executes a SELECT query and returns the first row or None as SelfHealingRow."""
         start_time = time.perf_counter()
         conn = self.connect()
         cursor = conn.cursor(dictionary=dictionary)
@@ -116,8 +133,21 @@ class DatabaseManager:
             row = cursor.fetchone()
             elapsed = (time.perf_counter() - start_time) * 1000
             logger.debug(f"fetch_one completed in {elapsed:.2f}ms.")
+            if dictionary and row:
+                return SelfHealingRow(row)
             return row
         except Error as e:
+            if SelfHealingConfig.is_db_enabled() and DatabaseHealer.is_read_only_query(query):
+                healed_query, conf = DatabaseHealer.heal_select_query(query, e)
+                if healed_query and conf >= SelfHealingConfig.get_confidence_threshold():
+                    logger.info(f"Retrying fetch_one with healed query: {healed_query}")
+                    cursor.close()
+                    cursor = conn.cursor(dictionary=dictionary)
+                    cursor.execute(healed_query, params or ())
+                    row = cursor.fetchone()
+                    if dictionary and row:
+                        return SelfHealingRow(row)
+                    return row
             logger.error(f"SQL fetch_one error for query [{query}]: {e}")
             raise
         finally:
@@ -240,3 +270,4 @@ def rollback(connection: MySQLConnection) -> None:
 def begin_transaction(connection: MySQLConnection) -> None:
     if connection and connection.is_connected():
         connection.autocommit = False
+

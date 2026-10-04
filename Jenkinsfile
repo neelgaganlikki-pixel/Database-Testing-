@@ -235,10 +235,25 @@ pipeline {
             }
         }
 
-        stage('13. Generate Reports') {
+        stage('13. Run Self-Healing Tests') {
             steps {
                 echo '========================================'
-                echo '13. GENERATE CONSOLIDATED REPORTS'
+                echo '13. RUN SELF-HEALING ENGINE TESTS'
+                echo '========================================'
+
+                bat '''
+                    venv\\Scripts\\python.exe -m pytest ^
+                        tests\\self_healing\\ ^
+                        -v ^
+                        --junitxml=reports\\junit-self-healing.xml
+                '''
+            }
+        }
+
+        stage('14. Generate Reports') {
+            steps {
+                echo '========================================'
+                echo '14. GENERATE CONSOLIDATED REPORTS'
                 echo '========================================'
 
                 bat '''

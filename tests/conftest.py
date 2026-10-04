@@ -34,6 +34,11 @@ from queries.order_queries import (
     SELECT_ORDER_BY_ID,
     DELETE_ORDER,
 )
+from self_healing import (
+    SelfHealingResponse,
+    DatabaseSchemaDiscovery,
+    HealingReporter,
+)
 
 
 # ============================================================
@@ -79,6 +84,10 @@ def setup_test_suite():
     logger.info("Initializing test suite database setup...")
 
     init_database()
+    try:
+        DatabaseSchemaDiscovery.get_schema_metadata(force_refresh=True)
+    except Exception:
+        pass
 
     yield
 
@@ -156,7 +165,8 @@ class APIClient:
 
         logger.info(f"API GET: {url}")
 
-        return self.session.get(url, **kwargs)
+        resp = self.session.get(url, **kwargs)
+        return SelfHealingResponse(resp)
 
     def post(self, endpoint: str, **kwargs):
 
@@ -164,7 +174,8 @@ class APIClient:
 
         logger.info(f"API POST: {url}")
 
-        return self.session.post(url, **kwargs)
+        resp = self.session.post(url, **kwargs)
+        return SelfHealingResponse(resp)
 
     def put(self, endpoint: str, **kwargs):
 
@@ -172,7 +183,8 @@ class APIClient:
 
         logger.info(f"API PUT: {url}")
 
-        return self.session.put(url, **kwargs)
+        resp = self.session.put(url, **kwargs)
+        return SelfHealingResponse(resp)
 
     def delete(self, endpoint: str, **kwargs):
 
@@ -180,7 +192,8 @@ class APIClient:
 
         logger.info(f"API DELETE: {url}")
 
-        return self.session.delete(url, **kwargs)
+        resp = self.session.delete(url, **kwargs)
+        return SelfHealingResponse(resp)
 
 
 def ensure_fastapi_running():
@@ -439,6 +452,19 @@ def pytest_runtest_makereport(item, call):
         "rep_" + rep.when,
         rep,
     )
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """
+    Hook executed after whole test session finishes.
+    Generates self-healing JSON report and prints console summary if any healing occurred.
+    """
+    reporter = HealingReporter.get_instance()
+    summary = reporter.get_summary_dict()
+    if summary["total_attempts"] > 0:
+        report_file = reporter.generate_report_file()
+        logger.info(f"Self-healing report generated: {report_file}")
+        print(reporter.get_markdown_summary())
 
 
 # ============================================================
